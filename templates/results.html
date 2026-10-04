@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HireLens AI - Results</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <h1>HireLens AI</h1>
+        <p class="tagline">Ranked candidates with explainable local scoring</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap layout">
+    <section class="panel results-panel" aria-labelledby="results-title">
+      <h2 id="results-title">Candidate screening results</h2>
+
+      <div class="alert alert-note" role="status">
+        <p class="alert-title">Processed {{ total }} file{{ '' if total == 1 else 's' }}; {{ readable }} readable.</p>
+        <p>Profile Fit is a local heuristic. It does not verify qualifications, experience or skill claims.</p>
+      </div>
+
+      {% if results %}
+        <div class="result-tools">
+          <div class="field compact-field">
+            <label for="candidate-search">Search candidates</label>
+            <input id="candidate-search" type="search" placeholder="Name, email, skill, filename..." autocomplete="off">
+          </div>
+          <div class="field compact-field">
+            <label for="candidate-filter">Filter</label>
+            <select id="candidate-filter">
+              <option value="all">All candidates</option>
+              <option value="strong">Strong match (70%+)</option>
+              <option value="review">Review (50–69.9%)</option>
+              <option value="low">Low match (&lt;50%)</option>
+            </select>
+          </div>
+          <div class="field compact-field">
+            <label for="candidate-sort">Sort</label>
+            <select id="candidate-sort">
+              <option value="high">Highest score first</option>
+              <option value="low">Lowest score first</option>
+              <option value="name">Name A–Z</option>
+            </select>
+          </div>
+        </div>
+
+        <p id="no-filter-results" class="alert alert-note" hidden>No candidates match the current search/filter.</p>
+
+        <div id="candidate-list" class="candidate-list">
+          {% for result in results %}
+            {% if result.success %}
+              {% set info = result.info %}
+              {% set match = result.match %}
+              {% set display_name = info.name if info and info.name else result.filename %}
+              <article class="candidate-card" data-score="{{ match.score if match else 0 }}" data-name="{{ display_name }}" data-search="{{ (display_name ~ ' ' ~ (info.email if info else '') ~ ' ' ~ (info.phone if info else '') ~ ' ' ~ (info.skills | join(' ') if info else '') ~ ' ' ~ result.filename) }}">
+                <div class="candidate-main">
+                  <div class="candidate-heading">
+                    <div>
+                      <h3>{{ display_name }}</h3>
+                      <p class="filename">{{ result.filename }}</p>
+                    </div>
+                    <div class="score-badge" aria-label="Profile Fit {{ match.score if match else 0 }} percent">
+                      <strong>{{ match.score if match else 0 }}%</strong>
+                      <span>Profile Fit</span>
+                    </div>
+                  </div>
+
+                  <div class="contact-row">
+                    <span><strong>Phone:</strong> {{ info.phone if info.phone else 'Not detected' }}</span>
+                    <span><strong>Email:</strong> {{ info.email if info.email else 'Not detected' }}</span>
+                  </div>
+
+                  {% if match %}
+                    <p class="suitability"><strong>{{ match.suitability }}</strong></p>
+                  {% endif %}
+
+                  <details class="candidate-details">
+                    <summary>View full candidate details</summary>
+                    <div class="details-body">
+                      {% if result.assessment_message %}
+                        <div class="alert alert-note"><p>{{ result.assessment_message }}</p></div>
+                      {% endif %}
+
+                      {% if match %}
+                        <section class="detail-section">
+                          <h4>Why this score?</h4>
+                          <div class="score-breakdown">
+                            <div><span>Job-description similarity</span><strong>{{ match.semantic_score }}%</strong></div>
+                            <div><span>Skill coverage</span><strong>{{ match.skill_score }}%</strong></div>
+                            <div><span>Resume evidence</span><strong>{{ match.evidence_score }}%</strong></div>
+                          </div>
+                          <p class="hint">{{ match.method }}</p>
+                        </section>
+
+                        <section class="detail-section two-column">
+                          <div>
+                            <h4>Matched skills</h4>
+                            {% if match.matched_skills %}
+                              <ul>{% for skill in match.matched_skills %}<li>{{ skill }}</li>{% endfor %}</ul>
+                            {% else %}<p>None detected from the job-skill set.</p>{% endif %}
+                          </div>
+                          <div>
+                            <h4>Missing / not detected</h4>
+                            {% if match.missing_skills %}
+                              <ul>{% for skill in match.missing_skills %}<li>{{ skill }}</li>{% endfor %}</ul>
+                            {% else %}<p>No missing skills detected from the job-skill set.</p>{% endif %}
+                          </div>
+                        </section>
+
+                        {% if match.mandatory_missing %}
+                          <div class="alert alert-error">
+                            <strong>Mandatory skill flags:</strong>
+                            {{ match.mandatory_missing | join(', ') }}
+                          </div>
+                        {% endif %}
+                      {% endif %}
+
+                      <section class="detail-section">
+                        <h4>Contact &amp; profiles</h4>
+                        <dl class="info-grid">
+                          <dt>Name</dt><dd>{{ info.name if info.name else 'Not detected' }}</dd>
+                          <dt>Email</dt><dd>{{ info.email if info.email else 'Not detected' }}</dd>
+                          <dt>Phone</dt><dd>{{ info.phone if info.phone else 'Not detected' }}</dd>
+                          <dt>LinkedIn</dt><dd>{{ info.linkedin if info.linkedin else 'Not detected' }}</dd>
+                          <dt>GitHub</dt><dd>{{ info.github if info.github else 'Not detected' }}</dd>
+                        </dl>
+                      </section>
+
+                      <section class="detail-section">
+                        <h4>Skills</h4>
+                        {% if info.skills %}<ul>{% for item in info.skills %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p>Not detected.</p>{% endif %}
+                      </section>
+
+                      <section class="detail-section two-column">
+                        <div>
+                          <h4>Education</h4>
+                          {% if info.education %}<ul>{% for item in info.education %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p>Not detected.</p>{% endif %}
+                        </div>
+                        <div>
+                          <h4>Experience</h4>
+                          {% if info.experience %}<ul>{% for item in info.experience %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p>Not detected.</p>{% endif %}
+                        </div>
+                      </section>
+
+                      <section class="detail-section">
+                        <h4>Projects</h4>
+                        {% if info.projects %}<ul>{% for item in info.projects %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p>Not detected.</p>{% endif %}
+                      </section>
+
+                      <p class="hint">{{ result.page_count }} page{{ '' if result.page_count == 1 else 's' }} processed. Resume text is not displayed.</p>
+                    </div>
+                  </details>
+                </div>
+              </article>
+            {% else %}
+              <article class="candidate-card failed-card" data-score="0" data-name="{{ result.filename }}" data-search="{{ result.filename }}">
+                <div class="candidate-heading">
+                  <div>
+                    <h3>{{ result.filename }}</h3>
+                    <p>Status: processing failed.</p>
+                  </div>
+                </div>
+                {% if result.error_message %}<p class="error-text">{{ result.error_message }}</p>{% endif %}
+              </article>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>No files were processed.</p>
+      {% endif %}
+
+      <p><a href="{{ url_for('index') }}">← Check another set of resumes</a></p>
+    </section>
+
+    <aside class="notes" aria-labelledby="notes-title">
+      <h2 id="notes-title">How the score works</h2>
+      <p><strong>60%</strong> job-description text similarity</p>
+      <p><strong>30%</strong> detected skill coverage</p>
+      <p><strong>10%</strong> useful resume evidence (experience, projects, skills, education)</p>
+      <p>Everything is calculated locally. Gemini is intentionally not included.</p>
+      <p><strong>Important:</strong> this percentage is not a probability of being hired. It is an explainable screening score.</p>
+    </aside>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">HireLens AI hackathon build</div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HireLens AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <h1>HireLens AI</h1>
+        <p class="tagline">Local resume screening with explainable scores</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap layout">
+    <section class="panel" aria-labelledby="form-title">
+      <h2 id="form-title">Screen resumes against a role</h2>
+
+      <div class="messages" aria-live="polite">
+        {% if errors %}
+          <div class="alert alert-error" role="alert">
+            <p class="alert-title">Fix the following, then submit again:</p>
+            <ul>
+              {% for message in errors %}<li>{{ message }}</li>{% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+
+      <form id="analyze-form" method="post" action="{{ url_for('analyze') }}" enctype="multipart/form-data">
+        <div class="field">
+          <label for="resumes">Resumes (PDF)</label>
+          <input type="file" id="resumes" name="resumes" accept=".pdf,application/pdf" multiple required aria-describedby="resumes-hint">
+          <p class="hint" id="resumes-hint">Up to {{ max_files }} files, {{ max_file_mb }} MB and {{ max_pages }} pages each. Text-based PDFs only; scanned images cannot be read.</p>
+        </div>
+
+        <div class="field">
+          <label for="job_description">Job description</label>
+          <textarea id="job_description" name="job_description" rows="9" maxlength="{{ max_jd_chars }}" required aria-describedby="jd-hint">{{ job_description }}</textarea>
+          <p class="hint" id="jd-hint">Paste the role's responsibilities and requirements. Up to {{ '{:,}'.format(max_jd_chars) }} characters.</p>
+        </div>
+
+        <div class="field">
+          <label for="mandatory_skills">Mandatory skills <span class="optional">(optional)</span></label>
+          <input type="text" id="mandatory_skills" name="mandatory_skills" maxlength="{{ max_skills_chars }}" value="{{ mandatory_skills }}" placeholder="Python, SQL, Flask" aria-describedby="skills-hint">
+          <p class="hint" id="skills-hint">Separate skills with commas. They are checked separately in the match result.</p>
+        </div>
+
+        <button id="analyze-button" type="submit" class="button">Check candidates</button>
+      </form>
+    </section>
+
+    <aside class="notes" aria-labelledby="notes-title">
+      <h2 id="notes-title">What this build does</h2>
+      <h3>Local processing</h3>
+      <p>PDF text and candidate information are processed locally. No Gemini/API call is used in this final build.</p>
+      <h3>Explainable score</h3>
+      <p>The profile-fit percentage uses job-description similarity, skill coverage and basic resume evidence. It is a screening aid, not a hiring prediction.</p>
+      <h3>Human review</h3>
+      <p>A score does not verify a candidate's claims or prove that a missing mention means a skill is absent.</p>
+    </aside>
+  </main>
+
+  <div id="checking-overlay" class="checking-overlay" hidden aria-live="assertive" aria-busy="true">
+    <div class="checking-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <h2>Checking resumes...</h2>
+      <p>Extracting candidate information and calculating local profile-fit scores.</p>
+      <p class="checking-small">Please keep this tab open.</p>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="wrap">HireLens AI hackathon build</div>
+  </footer>
+</body>
+</html>
